@@ -49,4 +49,29 @@
     </node>
   </group>
 
+
+
+######
+  <!-- AMCL -->
+  <include file="$(find turtlebot3_navigation)/launch/amcl.launch">
+    <arg name="initial_pose_x" value="$(arg x_pos)" />
+    <arg name="initial_pose_y" value="$(arg y_pos)" />
+    <!--arg name="initial_pose_z" value="$(arg z_pos)" /-->
+    <!--arg name="initial_pose_a" value="$(arg initial_pose_a)" / -->
+  </include>
+ 
+   <!--  ************** Navigation  ***************  -->
+  <include file="$(find final_project)/launch/move_base.launch.xml">
+    <arg name="model" value="$(arg model)" />
+    <!--arg name="move_forward_only" value="$(arg move_forward_only)"/-->
+  </include>
+
+
+  <include file="$(find final_project)/launch/rviz.launch"/>
+  
+  <!--node pkg="final_project" type="final_project.py" name="final_project"/-->
+
 </launch>
+
+
+
