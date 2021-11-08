@@ -1,0 +1,11 @@
+<launch>
+
+
+<!--  ****** Maps *****  -->
+  <arg name="map_file" default="$(find final_project)/maps/map.yaml"/>
+  <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" />
+
+
+  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find final_project)/rviz/project.rviz" />
+
+</launch>
