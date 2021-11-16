@@ -27,7 +27,7 @@ def message_listener(data):
   next_qr_x = final_data.X_next
   next_qr_y = final_data.Y_next
   qr_number = final_data.N
-  qr_letter = final_data.L
+  qr_letter = final_data
 
 
 def pose_listener(data):

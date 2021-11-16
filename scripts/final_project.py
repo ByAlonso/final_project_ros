@@ -10,38 +10,39 @@ from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 
-
+global QR_codee
+global Robot
 def scan_callback(msg):
   tmp=[msg.ranges[0]]
   for i in range(1,21):
     tmp.append(msg.ranges[i])
   for i in range(len(msg.ranges)-21,len(msg.ranges)):
     tmp.append(msg.ranges[i])
-  Robot.range_ahead = min(tmp)
+  globals()['Robot'].range_ahead = min(tmp)
  
 def status_listener(data):
   if data.data == 3 or data.data == 4:
-    if Robot.exploration:
-      Robot.exploration = False
-      Robot.navigation = True
+    if globals()['Robot'].exploration:
+      globals()['Robot'].exploration = False
+      globals()['Robot'].navigation = True
   else:
-      Robot.QR_detected = None
+      globals()['Robot'].QR_detected = None
 
 def message_listener(data):
   final_data = data.data.replace("\r\n","=").split("=")
   if final_data[0] is not '':
-    QR_codee = QR_code(final_data[1],final_data[3],final_data[5], final_data[7], final_data[9], final_data[11])
-    Robot.set_QR(QR_codee)
+    globals()['QR_codee'] = QR_code(final_data[1],final_data[3],final_data[5], final_data[7], final_data[9], final_data[11])
+    globals()['Robot'].set_QR(QR_codee)
   
 
 def pose_listener(data):
-  if data:
-    #point geometry_msgs.position
-    pose = data.pose
-    print(data)
-    #orientation = data.pose.orientation
+  if data is not None and globals()['QR_codee'] is not None:
+    globals()['QR_codee'].pose = data.pose
+    globals()['Robot'].set_QR(QR_codee)
+    
 
 global random_number
+
 random_number = 1
 class Final_Robot():
   def __init__(self):
@@ -65,7 +66,7 @@ class Final_Robot():
 
     self.tfBuffer = tf2_ros.Buffer()
     self.listener = tf2_ros.TransformListener(self.tfBuffer)
-    print(self.tfBuffer.lookup_transform("base_link", 'map', rospy.Time()))
+    #print(self.tfBuffer.lookup_transform("base_link", 'map', rospy.Time()))
     #print(rospy.get_param('/spawn_markers_urdf/markers'))
 
   def explore(self):
@@ -86,8 +87,10 @@ class Final_Robot():
 
   def navigate(self):
     #and self.QR_detected.number not in self.message
-    if self.QR_detected != None and self.QR_detected.number not in self.message:
+    if self.QR_detected.pose is not None and self.QR_detected.number not in self.message:
       self.stop()
+      print(self.QR_detected.current_x, self.QR_detected.current_y, self.QR_detected.pose)
+      print(self.QR_detected.next_x, self.QR_detected.next_y)
       self.message[self.QR_detected.number] = self.QR_detected.letter
       print(self.message)
       print(self.QR_detected.current_x, self.QR_detected.number)
@@ -108,6 +111,7 @@ class QR_code():
     self.next_y = next_y
     self.number = number
     self.letter = letter
+    self.pose = None
     self.tfBuffer = tf2_ros.Buffer()
     self.listener = tf2_ros.TransformListener(self.tfBuffer)
 
@@ -116,6 +120,8 @@ class QR_code():
     trans = self.tfBuffer.lookup_transform("map", 'base_link', rospy.Time())
     print(trans)
 
+  def set_pose(self,pose):
+    self.pose = pose
 
 rospy.init_node('final_project')
 Robot = Final_Robot()
