@@ -3,6 +3,7 @@
 
 import random
 import rospy
+import tf2_ros
 from std_msgs.msg import Int8
 from std_msgs.msg import String
 from geometry_msgs.msg import PoseStamped
@@ -28,15 +29,16 @@ def status_listener(data):
 
 def message_listener(data):
   final_data = data.data.replace("\r\n","=").split("=")
-  if final_data:
+  if final_data[0] is not '':
     QR_codee = QR_code(final_data[1],final_data[3],final_data[5], final_data[7], final_data[9], final_data[11])
     Robot.set_QR(QR_codee)
+  
 
 def pose_listener(data):
-  pass
   if data:
     #point geometry_msgs.position
     pose = data.pose
+    print(data)
     #orientation = data.pose.orientation
 
 global random_number
@@ -53,15 +55,21 @@ class Final_Robot():
     self.random_number = 1
     self.twist = Twist()
     self.linear_velocity = 0.4
-    self.angular_velocity = 0.4
+    self.angular_velocity = 0.3
     self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
     self.message_sub = rospy.Subscriber('visp_auto_tracker/code_message', String, message_listener)
     self.position_sub = rospy.Subscriber('visp_auto_tracker/object_position', PoseStamped, pose_listener)
     self.status_sub = rospy.Subscriber("visp_auto_tracker/status", Int8, status_listener)
     self.scan_sub = rospy.Subscriber('scan', LaserScan, scan_callback)
 
+
+    self.tfBuffer = tf2_ros.Buffer()
+    self.listener = tf2_ros.TransformListener(self.tfBuffer)
+    print(self.tfBuffer.lookup_transform("base_link", 'map', rospy.Time()))
+    #print(rospy.get_param('/spawn_markers_urdf/markers'))
+
   def explore(self):
-    self.driving = not self.range_ahead < 0.8
+    self.driving = not self.range_ahead < 1
     if self.driving:
       self.twist.linear.x = self.linear_velocity
       self.twist.angular.z = 0.0
@@ -77,8 +85,8 @@ class Final_Robot():
     self.cmd_vel_pub.publish(self.twist)
 
   def navigate(self):
-    
-    if self.QR_detected != None:
+    #and self.QR_detected.number not in self.message
+    if self.QR_detected != None and self.QR_detected.number not in self.message:
       self.stop()
       self.message[self.QR_detected.number] = self.QR_detected.letter
       print(self.message)
@@ -100,14 +108,18 @@ class QR_code():
     self.next_y = next_y
     self.number = number
     self.letter = letter
+    self.tfBuffer = tf2_ros.Buffer()
+    self.listener = tf2_ros.TransformListener(self.tfBuffer)
+
 
   def transform_to_map_frame(self):
-    pass
+    trans = self.tfBuffer.lookup_transform("map", 'base_link', rospy.Time())
+    print(trans)
 
 
+rospy.init_node('final_project')
 Robot = Final_Robot()
 QR_codee = None
-rospy.init_node('final_project')
 state_change_time = rospy.Time.now() + rospy.Duration(1)
 rate = rospy.Rate(60)
 
