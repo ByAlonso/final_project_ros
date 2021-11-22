@@ -3,12 +3,17 @@
 
 import random
 import rospy
+import tf_conversions
 import tf2_ros
 from std_msgs.msg import Int8
 from std_msgs.msg import String
 from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import TransformStamped
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
+import actionlib
+import time
 
 global QR_codee
 global Robot
@@ -57,16 +62,21 @@ class Final_Robot():
     self.twist = Twist()
     self.linear_velocity = 0.4
     self.angular_velocity = 0.3
+    self.trans = None
     self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
     self.message_sub = rospy.Subscriber('visp_auto_tracker/code_message', String, message_listener)
     self.position_sub = rospy.Subscriber('visp_auto_tracker/object_position', PoseStamped, pose_listener)
     self.status_sub = rospy.Subscriber("visp_auto_tracker/status", Int8, status_listener)
     self.scan_sub = rospy.Subscriber('scan', LaserScan, scan_callback)
 
+    self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction) 
+    #self.client.wait_for_server()
 
+    self.br = tf2_ros.TransformBroadcaster()
+    self.br_static = tf2_ros.StaticTransformBroadcaster()
     self.tfBuffer = tf2_ros.Buffer()
     self.listener = tf2_ros.TransformListener(self.tfBuffer)
-    #print(self.tfBuffer.lookup_transform("base_link", 'map', rospy.Time()))
+    
     #print(rospy.get_param('/spawn_markers_urdf/markers'))
 
   def explore(self):
@@ -87,13 +97,33 @@ class Final_Robot():
 
   def navigate(self):
     #and self.QR_detected.number not in self.message
-    if self.QR_detected.pose is not None and self.QR_detected.number not in self.message:
+    if self.QR_detected is not None and self.QR_detected.pose is not None and self.QR_detected.number not in self.message:
       self.stop()
-      print(self.QR_detected.current_x, self.QR_detected.current_y, self.QR_detected.pose)
-      print(self.QR_detected.next_x, self.QR_detected.next_y)
-      self.message[self.QR_detected.number] = self.QR_detected.letter
-      print(self.message)
-      print(self.QR_detected.current_x, self.QR_detected.number)
+      if len(self.message) == 0:
+          #Conseguir los broadcasts y tal
+          self.generate_frames(self.QR_detected)
+
+      '''pt = PointStamped()
+      pt.header.stamp = rospy.Time.now()
+      pt.header.frame_id = "qr_frame"
+      pt.point.x = self.QR_detected.next_x
+      pt.point.y = self.QR_detected.next_y
+      pt.point.z = 0.0
+      map_coordinates = self.trans.transform(pt,"/map")   
+
+      goal_pose = MoveBaseGoal()
+      goal_pose.target_pose.header.frame_id = 'map'
+      goal_pose.target_pose = map_coordinates
+      self.client.send_goal(goal_pose)
+      self.client.wait_for_result()
+      rospy.sleep(3)'''
+      '''print(self.QR_detected.current_x, self.QR_detected.current_y, self.QR_detected.pose)
+                        print(self.QR_detected.next_x, self.QR_detected.next_y)
+                        self.message[self.QR_detected.number] = self.QR_detected.letter
+                        print(self.message)
+                        print(self.QR_detected.current_x, self.QR_detected.number)'''
+      #print(self.tfBuffer.lookup_transform("map", 'qr_whatever', rospy.Time()))
+      
       #plan
       #move to next
 
@@ -102,6 +132,40 @@ class Final_Robot():
 
   def set_QR(self,QR_codee):
     self.QR_detected = QR_codee
+
+  def generate_frames(self,QR_code):
+    now = rospy.Time.now()
+    t = TransformStamped()
+    t.header.stamp = now
+    t.header.frame_id = "camera_link"
+    t.child_frame_id = "qr_parent"
+    t.transform.translation.x = QR_code.pose.position.x
+    t.transform.translation.y = QR_code.pose.position.y
+    t.transform.translation.z = QR_code.pose.position.z
+    t.transform.rotation.x = QR_code.pose.orientation.x
+    t.transform.rotation.y = QR_code.pose.orientation.y
+    t.transform.rotation.z = QR_code.pose.orientation.z
+    t.transform.rotation.w = QR_code.pose.orientation.w
+    self.br.sendTransform(t)
+    t_qr = TransformStamped()
+    t_qr.header.stamp = now
+    t_qr.header.frame_id = "qr_parent"
+    t_qr.child_frame_id = "qr_frame"
+    t_qr.transform.translation.x = float(QR_code.current_x)
+    t_qr.transform.translation.y = float(QR_code.current_y)
+    t_qr.transform.translation.z = 0.0
+    q = tf_conversions.transformations.quaternion_from_euler(0, 0, 0)
+    t_qr.transform.rotation.x = q[0]
+    t_qr.transform.rotation.y = q[1]
+    t_qr.transform.rotation.z = q[2]
+    t_qr.transform.rotation.w = q[3]
+    self.br.sendTransform(t_qr)
+    time.sleep(3)
+    self.trans = self.tfBuffer.lookup_transform('map', 'qr_frame', now)
+
+
+    
+    #self.br_static.sendTransform(trans)
 
 class QR_code():
   def __init__(self, current_x, current_y, next_x, next_y, number, letter):
@@ -112,13 +176,38 @@ class QR_code():
     self.number = number
     self.letter = letter
     self.pose = None
-    self.tfBuffer = tf2_ros.Buffer()
-    self.listener = tf2_ros.TransformListener(self.tfBuffer)
+    if self.pose is not None:
+      self.transform_to_map_frame()
 
 
-  def transform_to_map_frame(self):
-    trans = self.tfBuffer.lookup_transform("map", 'base_link', rospy.Time())
-    print(trans)
+  '''def transform_frames(self):
+          t = TransformStamped()
+          t.header.stamp = rospy.Time.now()
+          t.header.frame_id = "camera_link"
+          t.child_frame_id = "qr_parent"
+          t.transform.translation.x = self.pose.position.x
+          t.transform.translation.y = self.pose.position.y
+          t.transform.translation.z = self.pose.position.z
+          t.transform.rotation.x = self.pose.orientation.x
+          t.transform.rotation.y = self.pose.orientation.y
+          t.transform.rotation.z = self.pose.orientation.z
+          t.transform.rotation.w = self.pose.orientation.w
+          self.br_cam.sendTransform(t)
+          t_qr = TransformStamped()
+          t_qr.header.stamp = rospy.Time.now()
+          t_qr.header.frame_id = "qr_parent"
+          t_qr.child_frame_id = "qr_frame"
+          t_qr.transform.translation.x = float(self.current_x)
+          t_qr.transform.translation.y = float(self.current_y)
+          t_qr.transform.translation.z = 0.0
+          q = tf_conversions.transformations.quaternion_from_euler(0, 0, 0)
+          t_qr.transform.rotation.x = q[0]
+          t_qr.transform.rotation.y = q[1]
+          t_qr.transform.rotation.z = q[2]
+          t_qr.transform.rotation.w = q[3]
+          self.br_cam.sendTransform(t_qr)
+          trans = self.tfBuffer.lookup_transform('map', 'qr_frame', rospy.Time())
+          self.br_qr.sendTransform(trans)'''
 
   def set_pose(self,pose):
     self.pose = pose

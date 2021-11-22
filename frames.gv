@@ -1,0 +1,18 @@
+digraph G {
+"base_footprint" -> "base_link"[label="Broadcaster: /robot_state_publisher\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1422.940 sec old)\nBuffer length: 0.000 sec\n"];
+"odom" -> "base_footprint"[label="Broadcaster: /gazebo\nAverage rate: 30.040 Hz\nMost recent transform: 1422.920 ( 0.020 sec old)\nBuffer length: 4.960 sec\n"];
+"imu_link" -> "camera_link"[label="Broadcaster: /robot_state_publisher\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1422.940 sec old)\nBuffer length: 0.000 sec\n"];
+"base_link" -> "imu_link"[label="Broadcaster: /robot_state_publisher\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1422.940 sec old)\nBuffer length: 0.000 sec\n"];
+"camera_link" -> "camera_optical_link"[label="Broadcaster: /robot_state_publisher\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1422.940 sec old)\nBuffer length: 0.000 sec\n"];
+"base_link" -> "caster_back_link"[label="Broadcaster: /robot_state_publisher\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1422.940 sec old)\nBuffer length: 0.000 sec\n"];
+"base_link" -> "base_scan"[label="Broadcaster: /robot_state_publisher\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1422.940 sec old)\nBuffer length: 0.000 sec\n"];
+"base_link" -> "wheel_left_link"[label="Broadcaster: /robot_state_publisher\nAverage rate: 20.363 Hz\nMost recent transform: 1422.920 ( 0.020 sec old)\nBuffer length: 4.960 sec\n"];
+"base_link" -> "wheel_right_link"[label="Broadcaster: /robot_state_publisher\nAverage rate: 20.363 Hz\nMost recent transform: 1422.920 ( 0.020 sec old)\nBuffer length: 4.960 sec\n"];
+"map" -> "odom"[label="Broadcaster: /amcl\nAverage rate: 5.217 Hz\nMost recent transform: 1423.240 ( -0.300 sec old)\nBuffer length: 4.600 sec\n"];
+"camera_link" -> "qr_parent"[label="Broadcaster: /final_project\nAverage rate: 9.890 Hz\nMost recent transform: 1422.580 ( 0.360 sec old)\nBuffer length: 1.820 sec\n"];
+"qr_parent" -> "qr_frame"[label="Broadcaster: /final_project\nAverage rate: 9.890 Hz\nMost recent transform: 1422.580 ( 0.360 sec old)\nBuffer length: 1.820 sec\n"];
+edge [style=invis];
+ subgraph cluster_legend { style=bold; color=black; label ="view_frames Result";
+"Recorded at time: 1422.940"[ shape=plaintext ] ;
+ }->"map";
+}
