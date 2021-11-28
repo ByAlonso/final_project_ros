@@ -11,6 +11,7 @@ from sensor_msgs.msg import LaserScan
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 import actionlib
 import tf2_msgs.msg
+import time
 
 global QR_code
 global Robot
@@ -42,8 +43,9 @@ class QR_code:
 
 class Final_Robot:
 	def __init__(self):
-		self.exploration = False
-		self.navigation = True
+		self.exploration = True
+		self.navigation = False
+		self.stopped = False
 		self.driving = True
 		self.range_ahead = 1
 		self.direction = [-1, 1]
@@ -54,30 +56,34 @@ class Final_Robot:
 		self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist,queue_size=1)
 
 	def explore(self):
-		self.driving = not self.range_ahead < 1
-		if self.driving:
-			self.twist.linear.x = self.linear_velocity
-			self.twist.angular.z = 0.0
-			self.random_number = random.randint(0, 1)
-		else:
-			self.twist.linear.x = 0.0
-			self.twist.angular.z = self.angular_velocity * self.direction[self.random_number]
+		if not self.stopped:
+			self.driving = not self.range_ahead < 1
+			if self.driving:
+				self.twist.linear.x = self.linear_velocity
+				self.twist.angular.z = 0.0
+				self.random_number = random.randint(0, 1)
+			else:
+				self.twist.linear.x = 0.0
+				self.twist.angular.z = self.angular_velocity * self.direction[self.random_number]
 			self.cmd_vel_pub.publish(self.twist)
-		if self.current_QR is not None and len(globals()['final_message']) >= 2:
-			self.exploration = False
-			self.navigation = True
+			if self.current_QR is not None and len(globals()['final_message']) >= 2:
+				self.exploration = False
+				self.navigation = True
 
 	def navigate(self):
-		
-		if self.current_QR is not None and self.current_QR.pose is not None and self.current_QR.number not in final_message:
-			self.stop()
-			'''if len(globals()['final_message']) == 1:
-													globals()['final_message'][self.current_QR.number] = self.current_QR'''
+		if not self.stopped:
+			if self.current_QR is not None and self.current_QR.pose is not None and self.current_QR.number not in final_message:
+				self.stop()
+				'''if len(globals()['final_message']) == 1:
+														globals()['final_message'][self.current_QR.number] = self.current_QR'''
 
 	def stop(self):
 		self.twist.angular.z = 0.0
 		self.twist.linear.x = 0.0
 		self.cmd_vel_pub.publish(self.twist)
+		self.stopped = True
+		time.sleep(3)
+		self.stopped = False
 
 	def set_QR(self,qr_code):
 		self.current_QR = qr_code
@@ -114,8 +120,7 @@ def generate_frame(parent_frame,child_frame,current_code):
 
 def pose_listener(data):
 	if data is not None and globals()['current_QR_code'] is not None and globals()['current_QR_code'].pose is None:
-		globals()['Robot'].stop()
-		rospy.sleep(2)
+		globals()["Robot"].stop()
 		globals()['current_QR_code'].pose = data.pose
 		globals()['Robot'].set_QR(globals()['current_QR_code'])
 		if len(globals()['final_message']) < 2:
@@ -124,7 +129,6 @@ def pose_listener(data):
 						generate_frame("camera_link","qr_frame_" + globals()['current_QR_code'].number,globals()['current_QR_code'])
 						globals()['current_QR_code'].pose_in_map  = transform_qr_pos_map_buffer.lookup_transform("map", "qr_frame_" + globals()['current_QR_code'].number, rospy.Time())
 						globals()['final_message'][globals()['current_QR_code'].number] = globals()['current_QR_code']
-						success = True
 						print("Success creating frame and transformation")
 					except:
 						print("Error creating frame and transformation")
@@ -132,7 +136,7 @@ def pose_listener(data):
 			print("I already have 2 frames in position")
 			globals()['Robot'].navigation = True
 			globals()['Robot'].exploration = False
-			for key [in globals()['final_message']:
+			for key in globals()['final_message']:
 				print(key,globals()['final_message'][key].pose_in_map)
 			rospy.sleep(3)
 
@@ -144,7 +148,6 @@ def pose_listener(data):
 											else:
 												#Here we have to generate the hidden_frame to then operate	
 												pass	'''
-
 
 
 message_sub = rospy.Subscriber('visp_auto_tracker/code_message',String, message_listener)
