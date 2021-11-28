@@ -40,7 +40,7 @@ def build_hidden_frame():
 	transformation_matrix_inv = np.linalg.inv(transformation_matrix)
 
 	transform_hidden_helper = np.matmul(transformation_matrix_inv, np.transpose(qr_array))
-	transform_hidden_helper = np.transpose(transform_hidden_helper)
+	#transform_hidden_helper = np.transpose(transform_hidden_helper)
 	print(transform_hidden_helper[0])
 	yaw = np.arccos(transform_hidden_helper[0])
 
