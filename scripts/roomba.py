@@ -31,7 +31,7 @@ class QR_code:
 		self.number = number
 		self.letter = letter
 		self.pose = None
-		self.frame = None
+		self.pose_in_map = None
 
 	def set_pose(self, pose):
 		self.pose = pose
@@ -71,12 +71,12 @@ class Final_Robot:
 		
 		if self.current_QR is not None and self.current_QR.pose is not None and self.current_QR.number not in final_message:
 			self.stop()
-			if len(globals()['final_message']) == 0:
-				try:
-					transform_qr_pos_map_buffer.lookup_transform("map", "qr_frame_1", rospy.Time())
-					print("success")
-				except:
-					print("failll")
+			'''if len(globals()['final_message']) == 0:
+													try:
+														transform_qr_pos_map_buffer.lookup_transform("map", "qr_frame_1", rospy.Time())
+														print("success")
+													except:
+														print("failll")'''
 				
 
 			if len(globals()['final_message']) == 1:
@@ -124,14 +124,30 @@ def pose_listener(data):
 	if data is not None and globals()['current_QR_code'] is not None and globals()['current_QR_code'].pose is None:
 		globals()['current_QR_code'].pose = data.pose
 		globals()['Robot'].set_QR(globals()['current_QR_code'])
-		globals()['final_message'][globals()['current_QR_code'].number] = globals()['current_QR_code']
-		generate_frame("camera_link","qr_frame_" + globals()['current_QR_code'].number,globals()['final_message'][globals()['current_QR_code'].number])
-		'''if len(globals()['final_message']) <= 2:
-									for key in globals()['final_message']:
-										generate_frame("camera_link","qr_frame_" + key,globals()['final_message'][key])
-								else:
-									#Here we have to generate the hidden_frame to then operate	
-									pass	'''
+		if len(globals()['final_message']) < 2:
+			if globals()['current_QR_code'].number not in globals()['final_message']:
+					try:
+						generate_frame("camera_link","qr_frame_" + globals()['current_QR_code'].number,globals()['current_QR_code'])
+						globals()['current_QR_code'].pose_in_map  = transform_qr_pos_map_buffer.lookup_transform("map", "qr_frame_" + globals()['current_QR_code'].number, rospy.Time())
+						globals()['final_message'][globals()['current_QR_code'].number] = globals()['current_QR_code']
+						success = True
+						print("Success creating frame and transformation")
+					except:
+						print("Error creating frame and transformation")
+		else:
+			print("I already have 2 frames in position")
+			for key in globals()['final_message']:
+				print(key,globals()['final_message'][key].pose_in_map)
+			rospy.sleep(3)
+
+		
+			'''for key in globals()['final_message']:
+													generate_frame("camera_link","qr_frame_" + key,globals()['final_message'][key])
+													globals()['current_QR_code'].pose_in_map  = transform_qr_pos_map_buffer.lookup_transform("map", "qr_frame_" + globals()['current_QR_code'].number, rospy.Time())
+													print(globals()['current_QR_code'].pose_in_map)
+											else:
+												#Here we have to generate the hidden_frame to then operate	
+												pass	'''
 
 
 
