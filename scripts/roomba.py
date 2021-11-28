@@ -12,6 +12,8 @@ from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 import actionlib
 import tf2_msgs.msg
 import time
+import numpy as np
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 global QR_code
 global Robot
@@ -22,6 +24,43 @@ transform_qr_pos_map_buffer = tf2_ros.Buffer()
 transform_qr_pos_map = tf2_ros.TransformListener(transform_qr_pos_map_buffer)
 state_change_time = rospy.Time.now() + rospy.Duration(1)
 rate = rospy.Rate(60)
+
+def build_hidden_frame():
+	st_QR_code = globals()['final_message'][globals()['final_message'].keys()[0]]
+	nd_QR_code = globals()['final_message'][globals()['final_message'].keys()[1]]
+
+	qr_array =[st_QR_code.current_x, st_QR_code.current_y, nd_QR_code.current_x, nd_QR_code.current_y]
+
+	transformation_matrix = [
+	[st_QR_code.pose_in_map.transform.translation.x, -st_QR_code.pose_in_map.transform.translation.y, 1, 0], 
+	[st_QR_code.pose_in_map.transform.translation.y, st_QR_code.pose_in_map.transform.translation.x, 0, 1], 
+	[nd_QR_code.pose_in_map.transform.translation.x, -nd_QR_code.pose_in_map.transform.translation.y, 1, 0], 
+	[nd_QR_code.pose_in_map.transform.translation.y, nd_QR_code.pose_in_map.transform.translation.x, 0, 1]]
+
+	transformation_matrix_inv = np.linalg.inv(transformation_matrix)
+
+	transform_hidden_helper = np.matmul(transformation_matrix_inv, np.transpose(qr_array))
+	transform_hidden_helper = np.transpose(transform_hidden_helper)
+	print(transform_hidden_helper[0])
+	yaw = np.arccos(transform_hidden_helper[0])
+
+	transform_hidden = TransformStamped()
+	transform_hidden.header.stamp = rospy.Time.now()
+	transform_hidden.header.frame_id = "map"
+	transform_hidden.child_frame_id = "hidden_frame"
+	transform_hidden.transform.translation.x = transform_hidden_helper[2]
+	transform_hidden.transform.translation.y = transform_hidden_helper[3]
+	transform_hidden.transform.translation.z = 0.0
+	quat = quaternion_from_euler(0.0, 0.0, yaw*(180/np.pi))
+	transform_hidden.transform.rotation.x = quat[0]
+	transform_hidden.transform.rotation.y = quat[1]
+	transform_hidden.transform.rotation.z = quat[2]
+	transform_hidden.transform.rotation.w = quat[3]
+	broadcaster_hidden = tf2_ros.StaticTransformBroadcaster()
+	broadcaster_hidden.sendTransform(transform_hidden)
+
+
+
 
 class QR_code:
 	def __init__(self,current_x,current_y,next_x,next_y,number,letter):
@@ -43,8 +82,8 @@ class QR_code:
 
 class Final_Robot:
 	def __init__(self):
-		self.exploration = True
-		self.navigation = False
+		self.exploration = False
+		self.navigation = True
 		self.stopped = False
 		self.driving = True
 		self.range_ahead = 1
@@ -134,6 +173,7 @@ def pose_listener(data):
 						print("Error creating frame and transformation")
 		else:
 			print("I already have 2 frames in position")
+			build_hidden_frame()
 			globals()['Robot'].navigation = True
 			globals()['Robot'].exploration = False
 			for key in globals()['final_message']:
