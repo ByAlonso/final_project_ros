@@ -37,6 +37,14 @@ def build_hidden_frame():
 	[nd_QR_code.pose_in_map.transform.translation.x, -nd_QR_code.pose_in_map.transform.translation.y, 1, 0], 
 	[nd_QR_code.pose_in_map.transform.translation.y, nd_QR_code.pose_in_map.transform.translation.x, 0, 1]]
 
+	'''qr_array =[st_QR_code.pose_in_map.transform.translation.x, st_QR_code.pose_in_map.transform.translation.y, nd_QR_code.pose_in_map.transform.translation.x, nd_QR_code.pose_in_map.transform.translation.y]
+
+	transformation_matrix = [
+	[st_QR_code.current_x, -st_QR_code.current_y, 1, 0], 
+	[st_QR_code.current_y, st_QR_code.current_x, 0, 1], 
+	[nd_QR_code.current_x, -nd_QR_code.current_y, 1, 0], 
+	[nd_QR_code.current_y, nd_QR_code.current_x, 0, 1]]'''
+
 	transformation_matrix_inv = np.linalg.inv(transformation_matrix)
 
 	transform_hidden_helper = np.matmul(transformation_matrix_inv, np.transpose(qr_array))
@@ -48,18 +56,16 @@ def build_hidden_frame():
 	transform_hidden.header.stamp = rospy.Time.now()
 	transform_hidden.header.frame_id = "map"
 	transform_hidden.child_frame_id = "hidden_frame"
-	transform_hidden.transform.translation.x = transform_hidden_helper[2]
-	transform_hidden.transform.translation.y = transform_hidden_helper[3]
+	transform_hidden.transform.translation.x = -transform_hidden_helper[3]
+	transform_hidden.transform.translation.y = transform_hidden_helper[2]
 	transform_hidden.transform.translation.z = 0.0
-	quat = quaternion_from_euler(0.0, 0.0, yaw*(180/np.pi))
+	quat = quaternion_from_euler(0.0, 0.0, yaw)
 	transform_hidden.transform.rotation.x = quat[0]
 	transform_hidden.transform.rotation.y = quat[1]
 	transform_hidden.transform.rotation.z = quat[2]
 	transform_hidden.transform.rotation.w = quat[3]
 	broadcaster_hidden = tf2_ros.StaticTransformBroadcaster()
 	broadcaster_hidden.sendTransform(transform_hidden)
-
-
 
 
 class QR_code:
@@ -105,16 +111,40 @@ class Final_Robot:
 				self.twist.linear.x = 0.0
 				self.twist.angular.z = self.angular_velocity * self.direction[self.random_number]
 			self.cmd_vel_pub.publish(self.twist)
-			if self.current_QR is not None and len(globals()['final_message']) >= 2:
+			if len(globals()['final_message']) >= 2:
 				self.exploration = False
 				self.navigation = True
 
 	def navigate(self):
 		if not self.stopped:
-			if self.current_QR is not None and self.current_QR.pose is not None and self.current_QR.number not in final_message:
-				self.stop()
-				'''if len(globals()['final_message']) == 1:
-														globals()['final_message'][self.current_QR.number] = self.current_QR'''
+			self.current_QR = globals()['final_message'].keys()[0]
+			while (self.current_QR.number + 1) % 5 in globals()['final_message'].keys():
+				self.current_QR = globals()['final_message'].keys()[(self.current_QR.number + 1) % 5]
+
+			#move to the position
+			'''pt = PointStamped()
+									      pt.header.stamp = rospy.Time(0)
+									      pt.header.frame_id = "hidden_frame"
+									      pt.point.x = self.QR_detected.next_x
+									      pt.point.y = self.QR_detected.next_y
+									      pt.point.z = 0.0
+									      try:
+										      pt_to_map = globals()['listener'].transformPoint("/map",pt)
+													goal_pose = MoveBaseGoal()
+										      goal_pose.target_pose.header.frame_id = 'map'
+										      goal_pose.target_pose.pose.position.x =  pt_to_map.point.x
+										      goal_pose.target_pose.pose.position.y =  pt_to_map.point.y
+										      goal_pose.target_pose.pose.position.z =  pt_to_map.point.z
+										      goal_pose.target_pose.pose.orientation.x = 0.0
+										      goal_pose.target_pose.pose.orientation.y = 0.0
+										      goal_pose.target_pose.pose.orientation.z = -0.64
+										      goal_pose.target_pose.pose.orientation.w = -0.76
+										      self.client.send_goal(goal_pose)
+										      self.client.wait_for_result()
+										    except:
+										    	pass'''
+
+		
 
 	def stop(self):
 		self.twist.angular.z = 0.0
@@ -123,10 +153,6 @@ class Final_Robot:
 		self.stopped = True
 		time.sleep(3)
 		self.stopped = False
-
-	def set_QR(self,qr_code):
-		self.current_QR = qr_code
-
 
 def scan_callback(msg):
 	tmp = [msg.ranges[0]]
@@ -142,7 +168,6 @@ def message_listener(data):
 	final_data = data.data.replace('\r\n', '=').split('=')
 	if final_data[0] is not '':
 		globals()['current_QR_code'] = QR_code(final_data[1],final_data[3],final_data[5],final_data[7],final_data[9],final_data[11])
-		globals()['Robot'].set_QR(globals()['current_QR_code'])
 		
 
 def generate_frame(parent_frame,child_frame,current_code):	  
@@ -161,7 +186,6 @@ def pose_listener(data):
 	if data is not None and globals()['current_QR_code'] is not None and globals()['current_QR_code'].pose is None:
 		globals()["Robot"].stop()
 		globals()['current_QR_code'].pose = data.pose
-		globals()['Robot'].set_QR(globals()['current_QR_code'])
 		if len(globals()['final_message']) < 2:
 			if globals()['current_QR_code'].number not in globals()['final_message']:
 					try:
