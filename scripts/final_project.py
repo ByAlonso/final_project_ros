@@ -4,7 +4,7 @@
 import random
 import rospy
 import tf_conversions
-import tf
+import tf2_ros
 from std_msgs.msg import Int8
 from std_msgs.msg import String
 from geometry_msgs.msg import PoseStamped
@@ -103,7 +103,8 @@ class Final_Robot():
       if len(self.message) == 0:
           #Conseguir los broadcasts y tal
           self.generate_frames(self.QR_detected)
-      pt = PointStamped()
+          self.message[self.QR_detected.number] = self.QR_detected.letter
+      '''pt = PointStamped()
       pt.header.stamp = rospy.Time(0)
       pt.header.frame_id = "qr_frame"
       pt.point.x = self.QR_detected.next_x
@@ -113,7 +114,7 @@ class Final_Robot():
       print(self.translation)
       print("...............")
       print(pt_to_map)
-      '''globals()['listener'].waitForTransform("/map", "/qr_frame", rospy.Time(0), rospy.Duration(4.0))
+      globals()['listener'].waitForTransform("/map", "/qr_frame", rospy.Time(0), rospy.Duration(4.0))
       pt2 = globals()['listener'].transformPoint("/map",pt)
 
       while(pt2 == 0):
@@ -125,7 +126,7 @@ class Final_Robot():
       '''print(self.translation)
                         print("-----------------")
                         print(pt2)'''
-      goal_pose = MoveBaseGoal()
+      '''goal_pose = MoveBaseGoal()
       goal_pose.target_pose.header.frame_id = 'map'
       goal_pose.target_pose.pose.position.x =  pt_to_map.point.x
       goal_pose.target_pose.pose.position.y =  pt_to_map.point.y
@@ -136,7 +137,7 @@ class Final_Robot():
       goal_pose.target_pose.pose.orientation.w = -0.76
       self.client.send_goal(goal_pose)
       self.client.wait_for_result()
-      rospy.sleep(3)
+      rospy.sleep(3)'''
       
       #plan
       #move to next
@@ -161,12 +162,10 @@ class Final_Robot():
     t.transform.rotation.y = QR_code.pose.orientation.y
     t.transform.rotation.z = QR_code.pose.orientation.z
     t.transform.rotation.w = QR_code.pose.orientation.w
-    globals()['br'].sendTransform((t.transform.translation.x,t.transform.translation.y,t.transform.translation.z)
-      ,(t.transform.rotation.x,t.transform.rotation.y,t.transform.rotation.z,t.transform.rotation.w),
-      now,"qr_frame","camera_link")
+    globals()['br'].sendTransform(t)
     rospy.sleep(3)
-    globals()['listener'].waitForTransform("/map", "/qr_frame", rospy.Time(0), rospy.Duration(4.0))
-    (self.translation, self.orientation) = globals()['listener'].lookupTransform('/map', '/qr_frame', rospy.Time(0))
+    '''globals()['listener'].waitForTransform("/map", "/qr_frame", rospy.Time(0), rospy.Duration(4.0))
+    (self.translation, self.orientation) = globals()['listener'].lookupTransform('/map', '/qr_frame', rospy.Time(0))'''
     '''while not frame_detected:
       try:
         globals()['listener'].waitForTransform("/map", "/qr_frame", now, rospy.Duration(4.0))
@@ -198,8 +197,8 @@ class QR_code():
 rospy.init_node('final_project')
 Robot = Final_Robot()
 QR_codee = None
-listener = tf.TransformListener()
-br = tf.TransformBroadcaster()
+#listener = tf.TransformListener()
+br = tf2_ros.StaticTransformBroadcaster()
 state_change_time = rospy.Time.now() + rospy.Duration(1)
 rate = rospy.Rate(60)
 
