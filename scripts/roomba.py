@@ -88,8 +88,8 @@ class QR_code:
 
 class Final_Robot:
 	def __init__(self):
-		self.exploration = False
-		self.navigation = True
+		self.exploration = True
+		self.navigation = False
 		self.stopped = False
 		self.driving = True
 		self.range_ahead = 1
@@ -101,6 +101,10 @@ class Final_Robot:
 		self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist,queue_size=1)
 
 	def explore(self):
+		if len(globals()['final_message']) >= 2:
+				self.exploration = False
+				self.navigation = True
+				return
 		if not self.stopped:
 			self.driving = not self.range_ahead < 1
 			if self.driving:
@@ -111,9 +115,7 @@ class Final_Robot:
 				self.twist.linear.x = 0.0
 				self.twist.angular.z = self.angular_velocity * self.direction[self.random_number]
 			self.cmd_vel_pub.publish(self.twist)
-			if len(globals()['final_message']) >= 2:
-				self.exploration = False
-				self.navigation = True
+			
 
 	def navigate(self):
 		if not self.stopped:
