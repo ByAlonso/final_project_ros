@@ -71,16 +71,8 @@ class Final_Robot:
 		
 		if self.current_QR is not None and self.current_QR.pose is not None and self.current_QR.number not in final_message:
 			self.stop()
-			'''if len(globals()['final_message']) == 0:
-													try:
-														transform_qr_pos_map_buffer.lookup_transform("map", "qr_frame_1", rospy.Time())
-														print("success")
-													except:
-														print("failll")'''
-				
-
-			if len(globals()['final_message']) == 1:
-				globals()['final_message'][self.current_QR.number] = self.current_QR
+			'''if len(globals()['final_message']) == 1:
+													globals()['final_message'][self.current_QR.number] = self.current_QR'''
 
 	def stop(self):
 		self.twist.angular.z = 0.0
@@ -122,6 +114,8 @@ def generate_frame(parent_frame,child_frame,current_code):
 
 def pose_listener(data):
 	if data is not None and globals()['current_QR_code'] is not None and globals()['current_QR_code'].pose is None:
+		globals()['Robot'].stop()
+		rospy.sleep(2)
 		globals()['current_QR_code'].pose = data.pose
 		globals()['Robot'].set_QR(globals()['current_QR_code'])
 		if len(globals()['final_message']) < 2:
@@ -136,7 +130,9 @@ def pose_listener(data):
 						print("Error creating frame and transformation")
 		else:
 			print("I already have 2 frames in position")
-			for key in globals()['final_message']:
+			globals()['Robot'].navigation = True
+			globals()['Robot'].exploration = False
+			for key [in globals()['final_message']:
 				print(key,globals()['final_message'][key].pose_in_map)
 			rospy.sleep(3)
 
