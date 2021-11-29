@@ -28,44 +28,62 @@ rate = rospy.Rate(60)
 def build_hidden_frame():
 	st_QR_code = globals()['final_message'][globals()['final_message'].keys()[0]]
 	nd_QR_code = globals()['final_message'][globals()['final_message'].keys()[1]]
+	print("1st QR x and y")
+	print(st_QR_code.current_x,st_QR_code.current_y)
+	print("2nd QR x and y")
+	print(nd_QR_code.current_x,nd_QR_code.current_y)
 
-	qr_array =[st_QR_code.current_x, st_QR_code.current_y, nd_QR_code.current_x, nd_QR_code.current_y]
+	print("1st QR in map")
+	print(st_QR_code.pose_in_map)
+	print("2nd QR  in map")
+	print(nd_QR_code.pose_in_map)
 
-	transformation_matrix = [
-	[st_QR_code.pose_in_map.transform.translation.x, -st_QR_code.pose_in_map.transform.translation.y, 1, 0], 
-	[st_QR_code.pose_in_map.transform.translation.y, st_QR_code.pose_in_map.transform.translation.x, 0, 1], 
-	[nd_QR_code.pose_in_map.transform.translation.x, -nd_QR_code.pose_in_map.transform.translation.y, 1, 0], 
-	[nd_QR_code.pose_in_map.transform.translation.y, nd_QR_code.pose_in_map.transform.translation.x, 0, 1]]
+	'''qr_array =[st_QR_code.current_x, st_QR_code.current_y, nd_QR_code.current_x, nd_QR_code.current_y]
+						
+				transformation_matrix = [
+				[st_QR_code.pose_in_map.transform.translation.x, -st_QR_code.pose_in_map.transform.translation.y, 1, 0], 
+				[st_QR_code.pose_in_map.transform.translation.y, st_QR_code.pose_in_map.transform.translation.x, 0, 1], 
+				[nd_QR_code.pose_in_map.transform.translation.x, -nd_QR_code.pose_in_map.transform.translation.y, 1, 0], 
+				[nd_QR_code.pose_in_map.transform.translation.y, nd_QR_code.pose_in_map.transform.translation.x, 0, 1]]'''
 
-	'''qr_array =[st_QR_code.pose_in_map.transform.translation.x, st_QR_code.pose_in_map.transform.translation.y, nd_QR_code.pose_in_map.transform.translation.x, nd_QR_code.pose_in_map.transform.translation.y]
+	
 
+	qr_array =[st_QR_code.pose_in_map.transform.translation.x, st_QR_code.pose_in_map.transform.translation.y, nd_QR_code.pose_in_map.transform.translation.x, nd_QR_code.pose_in_map.transform.translation.y]
+			
 	transformation_matrix = [
 	[st_QR_code.current_x, -st_QR_code.current_y, 1, 0], 
 	[st_QR_code.current_y, st_QR_code.current_x, 0, 1], 
 	[nd_QR_code.current_x, -nd_QR_code.current_y, 1, 0], 
-	[nd_QR_code.current_y, nd_QR_code.current_x, 0, 1]]'''
+	[nd_QR_code.current_y, nd_QR_code.current_x, 0, 1]]
+
+	print("TRANSFORMATION MATRIX")
+	print(transformation_matrix)
 
 	transformation_matrix_inv = np.linalg.inv(transformation_matrix)
 
-	transform_hidden_helper = np.matmul(transformation_matrix_inv, np.transpose(qr_array))
-	#transform_hidden_helper = np.transpose(transform_hidden_helper)
-	print(transform_hidden_helper[0])
+	print("INVERSE TRANSFORMATION MATRIX")
+	print(transformation_matrix_inv)
+
+	transform_hidden_helper = np.dot(transformation_matrix_inv, np.transpose(qr_array))
+	transform_hidden_helper = np.transpose(transform_hidden_helper)
+	print("---------------------HELPER----------------------")
+	print(transform_hidden_helper)
 	yaw = np.arccos(transform_hidden_helper[0])
 
-	transform_hidden = TransformStamped()
-	transform_hidden.header.stamp = rospy.Time.now()
-	transform_hidden.header.frame_id = "map"
-	transform_hidden.child_frame_id = "hidden_frame"
-	transform_hidden.transform.translation.x = -transform_hidden_helper[3]
-	transform_hidden.transform.translation.y = transform_hidden_helper[2]
-	transform_hidden.transform.translation.z = 0.0
-	quat = quaternion_from_euler(0.0, 0.0, yaw)
-	transform_hidden.transform.rotation.x = quat[0]
-	transform_hidden.transform.rotation.y = quat[1]
-	transform_hidden.transform.rotation.z = quat[2]
-	transform_hidden.transform.rotation.w = quat[3]
-	broadcaster_hidden = tf2_ros.StaticTransformBroadcaster()
-	broadcaster_hidden.sendTransform(transform_hidden)
+	'''transform_hidden = TransformStamped()
+				transform_hidden.header.stamp = rospy.Time.now()
+				transform_hidden.header.frame_id = "map"
+				transform_hidden.child_frame_id = "hidden_frame"
+				transform_hidden.transform.translation.x = transform_hidden_helper[2]
+				transform_hidden.transform.translation.y = transform_hidden_helper[3]
+				transform_hidden.transform.translation.z = 0.0
+				quat = quaternion_from_euler(0.0, 0.0, yaw)
+				transform_hidden.transform.rotation.x = 0
+				transform_hidden.transform.rotation.y = 0
+				transform_hidden.transform.rotation.z = 0
+				transform_hidden.transform.rotation.w = 1
+				broadcaster_hidden = tf2_ros.StaticTransformBroadcaster()
+				broadcaster_hidden.sendTransform(transform_hidden)'''
 
 
 class QR_code:
@@ -118,33 +136,34 @@ class Final_Robot:
 			
 
 	def navigate(self):
-		if not self.stopped:
-			self.current_QR = globals()['final_message'].keys()[0]
-			while (self.current_QR.number + 1) % 5 in globals()['final_message'].keys():
-				self.current_QR = globals()['final_message'].keys()[(self.current_QR.number + 1) % 5]
+		self.stop()
+		'''if not self.stopped:
+									self.current_QR = globals()['final_message'].keys()[0]
+									while (int(self.current_QR.number) + 1) % 5 in globals()['final_message'].keys():
+										self.current_QR = globals()['final_message'].keys()[(int(self.current_QR.number) + 1) % 5]'''
 
-			#move to the position
-			'''pt = PointStamped()
-									      pt.header.stamp = rospy.Time(0)
-									      pt.header.frame_id = "hidden_frame"
-									      pt.point.x = self.QR_detected.next_x
-									      pt.point.y = self.QR_detected.next_y
-									      pt.point.z = 0.0
-									      try:
-										      pt_to_map = globals()['listener'].transformPoint("/map",pt)
-													goal_pose = MoveBaseGoal()
-										      goal_pose.target_pose.header.frame_id = 'map'
-										      goal_pose.target_pose.pose.position.x =  pt_to_map.point.x
-										      goal_pose.target_pose.pose.position.y =  pt_to_map.point.y
-										      goal_pose.target_pose.pose.position.z =  pt_to_map.point.z
-										      goal_pose.target_pose.pose.orientation.x = 0.0
-										      goal_pose.target_pose.pose.orientation.y = 0.0
-										      goal_pose.target_pose.pose.orientation.z = -0.64
-										      goal_pose.target_pose.pose.orientation.w = -0.76
-										      self.client.send_goal(goal_pose)
-										      self.client.wait_for_result()
-										    except:
-										    	pass'''
+		#move to the position
+		'''pt = PointStamped()
+								      pt.header.stamp = rospy.Time(0)
+								      pt.header.frame_id = "hidden_frame"
+								      pt.point.x = self.QR_detected.next_x
+								      pt.point.y = self.QR_detected.next_y
+								      pt.point.z = 0.0
+								      try:
+									      pt_to_map = globals()['listener'].transformPoint("/map",pt)
+												goal_pose = MoveBaseGoal()
+									      goal_pose.target_pose.header.frame_id = 'map'
+									      goal_pose.target_pose.pose.position.x =  pt_to_map.point.x
+									      goal_pose.target_pose.pose.position.y =  pt_to_map.point.y
+									      goal_pose.target_pose.pose.position.z =  pt_to_map.point.z
+									      goal_pose.target_pose.pose.orientation.x = 0.0
+									      goal_pose.target_pose.pose.orientation.y = 0.0
+									      goal_pose.target_pose.pose.orientation.z = -0.64
+									      goal_pose.target_pose.pose.orientation.w = -0.76
+									      self.client.send_goal(goal_pose)
+									      self.client.wait_for_result()
+									    except:
+									    	pass'''
 
 		
 
