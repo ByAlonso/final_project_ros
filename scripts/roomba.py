@@ -50,8 +50,6 @@ def build_tranformation_matrix():
 				[transform_hidden_helper[1],transform_hidden_helper[0],transform_hidden_helper[3]],
 				[0,0,1]]
 
-	print(globals()['T'])
-
 
 class QR_code:
 	def __init__(self,current_x,current_y,next_x,next_y,number,letter):
@@ -73,8 +71,8 @@ class QR_code:
 
 class Final_Robot:
 	def __init__(self):
-		self.exploration = False
-		self.navigation = True
+		self.exploration = True
+		self.navigation = False
 		self.stopped = False
 		self.driving = True
 		self.range_ahead = 1
@@ -107,26 +105,21 @@ class Final_Robot:
 		if len(globals()['final_message']) >= 2 and globals()['T'] is not None:
 			keys = sorted(final_message.keys())
 			self.current_QR = final_message[keys[0]]
-			print(self.current_QR.number)
-			while str(int(self.current_QR.number) % 5) in keys or int(self.current_QR.number) % 5 is 0:
-				self.current_QR = final_message[int(self.current_QR.number + 1 % 5)]
-			print(self.current_QR.number)
-			print(keys)
-			rospy.sleep(3)
+			while str((int(self.current_QR.number) + 1)) in keys and (str((int(self.current_QR.number) + 1) % 5) in keys or (int(self.current_QR.number) + 1) % 5 is 0):
+				self.current_QR = final_message[str(int(self.current_QR.number) + 1)]
 
-			'''next_point = np.matmul(globals()['T'],[self.current_QR.next_x,self.current_QR.next_y,1])		
-												goal_pose = MoveBaseGoal()
-												goal_pose.target_pose.header.frame_id = 'map'
-												goal_pose.target_pose.pose.position.x =  next_point[0]
-												goal_pose.target_pose.pose.position.y =  next_point[1]
-												goal_pose.target_pose.pose.position.z =  0.0
-												goal_pose.target_pose.pose.orientation.x = 0.0
-												goal_pose.target_pose.pose.orientation.y = 0.0
-												goal_pose.target_pose.pose.orientation.z = 0.0
-												goal_pose.target_pose.pose.orientation.w = 1
-												globals()['client'].send_goal(goal_pose)
-												globals()['client'].wait_for_result()
-												print(globals()['final_message'])'''
+			next_point = np.matmul(globals()['T'],[self.current_QR.next_x,self.current_QR.next_y,1])		
+			goal_pose = MoveBaseGoal()
+			goal_pose.target_pose.header.frame_id = 'map'
+			goal_pose.target_pose.pose.position.x =  next_point[0]
+			goal_pose.target_pose.pose.position.y =  next_point[1]
+			goal_pose.target_pose.pose.position.z =  0.0
+			goal_pose.target_pose.pose.orientation.x = 0.0
+			goal_pose.target_pose.pose.orientation.y = 0.0
+			goal_pose.target_pose.pose.orientation.z = 0.0
+			goal_pose.target_pose.pose.orientation.w = 1
+			globals()['client'].send_goal(goal_pose)
+			globals()['client'].wait_for_result()
 
 		
 
@@ -134,6 +127,7 @@ class Final_Robot:
 		self.twist.angular.z = 0.0
 		self.twist.linear.x = 0.0
 		self.cmd_vel_pub.publish(self.twist)
+		self.stopped = True
 
 def scan_callback(msg):
 	tmp = [msg.ranges[0]]
@@ -165,26 +159,28 @@ def generate_frame(parent_frame,child_frame,current_code):
 
 def pose_listener(data):
 	if data is not None and globals()['current_QR_code'] is not None and globals()['current_QR_code'].pose is None:
-		globals()["Robot"].stop()
 		globals()['current_QR_code'].pose = data.pose
 		if len(globals()['final_message']) < 2:
 			if globals()['current_QR_code'].number not in globals()['final_message']:
-					try:
-						generate_frame("camera_link","qr_frame_" + globals()['current_QR_code'].number,globals()['current_QR_code'])
-						globals()['current_QR_code'].pose_in_map  = transform_qr_pos_map_buffer.lookup_transform("map", "qr_frame_" + globals()['current_QR_code'].number, rospy.Time())
-						globals()['final_message'][globals()['current_QR_code'].number] = globals()['current_QR_code']
-						print("Success creating frame and transformation")
-					except:
-						print("Error creating frame and transformation")
+				globals()["Robot"].stop()
+				try:
+					generate_frame("camera_link","qr_frame_" + globals()['current_QR_code'].number,globals()['current_QR_code'])
+					globals()['current_QR_code'].pose_in_map  = transform_qr_pos_map_buffer.lookup_transform("map", "qr_frame_" + globals()['current_QR_code'].number, rospy.Time())
+					globals()['final_message'][globals()['current_QR_code'].number] = globals()['current_QR_code']
+					print("Success creating frame and transformation")
+					globals()["Robot"].stopped = False
+				except:
+					print("Error creating frame and transformation")
 		elif globals()['T'] is None:
 			print("I already have 2 frames in position")
 			build_tranformation_matrix()
 			globals()['Robot'].navigation = True
 			globals()['Robot'].exploration = False
 		else:
-			if globals()['current_QR_code'].number in globals()['final_message'].keys():
-				globals()['final_message'][globals()['current_QR_code'].number] = globals()['current_QR_code']
-				globals()['client'].cancel_goal()
+			if len(globals()['final_message'])  >= 2:
+				if globals()['current_QR_code'].number not in globals()['final_message'].keys():
+					globals()['final_message'][globals()['current_QR_code'].number] = globals()['current_QR_code']
+					globals()['client'].cancel_goal()
 
 
 message_sub = rospy.Subscriber('visp_auto_tracker/code_message',String, message_listener)
@@ -199,11 +195,12 @@ if __name__ == '__main__':
 		while Robot.exploration:
 			Robot.explore()
 			rate.sleep()
-		while Robot.navigation:
+		while Robot.navigation and len(final_message) < 5:
 			Robot.navigate()
 			rate.sleep()
+	
+	print("----------------------------------------")
+	for key in range(1,6):
+		print(final_message[str(key)].letter)
+	print("----------------------------------------")
 	rospy.spin()
-	print("----------------------------------------")
-	for key in range(0,5):
-		print(final_message[key].letter)
-	print("----------------------------------------")
